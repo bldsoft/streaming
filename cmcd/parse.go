@@ -131,21 +131,13 @@ func parseSession(attrs map[string]string) (Session, error) {
 		case "sid":
 			ses.ID = strings.Trim(v, `"`)
 		case "st":
-			// TODO(otl): what if it's not "l"?
-			if v == "l" {
-				ses.Live = true
-			}
+			ses.StreamType = "l"
 		case "cid":
 			ses.ContentID = strings.Trim(v, `"`)
 		case "pr":
-			i, err := strconv.Atoi(v)
+			i, err := strconv.ParseFloat(v, 32)
 			if err != nil {
 				return ses, fmt.Errorf("play rate: %w", err)
-			}
-			// TODO(otl): what is this max value? why?
-			// Include in the error message.
-			if i > 2 {
-				return ses, fmt.Errorf("play rate: %d greater than max %d", i, 2)
 			}
 			ses.PlayRate = PlayRate(i)
 		case "sf":

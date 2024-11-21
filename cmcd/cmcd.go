@@ -178,9 +178,7 @@ type Session struct {
 	// characters.
 	ID string
 	// Type of the stream. If false, all playback segments are
-	// available. Otherwise, the stream is considered live, and
-	// segments become available over time.
-	Live bool
+	StreamType
 	// A unique identifier of the client's requested content, no
 	// longer than 64 characters.
 	ContentID string
@@ -191,13 +189,22 @@ type Session struct {
 	version int
 }
 
-type PlayRate uint8
+type PlayRate float32
 
 const (
 	Stopped PlayRate = iota
 	RealTime
 	DoubleTime
 )
+
+type StreamType string
+
+const (
+	LiveStreamType StreamType = "l"
+	VODStreamType  StreamType = "v"
+)
+
+func (st StreamType) Live() bool { return st == LiveStreamType }
 
 type StreamFormat byte
 
