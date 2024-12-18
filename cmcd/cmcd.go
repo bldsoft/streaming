@@ -157,13 +157,25 @@ func parseRange(s string) (Range, error) {
 	if !found {
 		return Range{}, fmt.Errorf("parse next range request: missing range separator %q", "-")
 	}
-	off, err := strconv.Atoi(offset)
-	if err != nil {
-		return Range{}, fmt.Errorf("offset: %w", err)
+	offLen, eLen := len(offset), len(end)
+	if offLen+eLen == 0 {
+		return Range{}, fmt.Errorf("parse next range request: empty range parameters")
 	}
-	e, err := strconv.Atoi(end)
-	if err != nil {
-		return Range{}, fmt.Errorf("end: %w", err)
+
+	var (
+		off, e int = -1, -1
+		err    error
+	)
+
+	if offLen > 0 {
+		if off, err = strconv.Atoi(offset); err != nil {
+			return Range{}, fmt.Errorf("offset: %w", err)
+		}
+	}
+	if eLen > 0 {
+		if e, err = strconv.Atoi(end); err != nil {
+			return Range{}, fmt.Errorf("end: %w", err)
+		}
 	}
 	return Range{off, e}, nil
 }

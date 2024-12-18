@@ -6,76 +6,92 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"errors"
 )
 
 func parseInfo(tokens map[string]string) (Info, error) {
-	var info Info
-	var err error
+	var (
+		info Info
+		err  error
+		errs error
+	)
 	info.Request, err = parseRequest(tokens)
 	if err != nil {
-		return info, fmt.Errorf("request: %w", err)
+		errs = errors.Join(errs, fmt.Errorf("request: %w", err))
 	}
 	info.Object, err = parseObject(tokens)
 	if err != nil {
-		return info, fmt.Errorf("object: %w", err)
+		errs = errors.Join(errs, fmt.Errorf("object: %w", err))
 	}
 	info.Status, err = parseStatus(tokens)
 	if err != nil {
-		return info, fmt.Errorf("status: %w", err)
+		errs = errors.Join(errs, fmt.Errorf("status: %w", err))
 	}
 	info.Session, err = parseSession(tokens)
 	if err != nil {
-		return info, fmt.Errorf("session: %w", err)
+		errs = errors.Join(errs, fmt.Errorf("session: %w", err))
 	}
 	if custom := parseCustom(tokens); custom != nil {
 		info.Custom = custom
 	}
-	return info, nil
+	return info, errs
 }
 
 func parseRequest(attrs map[string]string) (Request, error) {
-	var req Request
+	var (
+		req  Request
+		errs error
+	)
 	for k, v := range attrs {
 		switch k {
 		case "bl":
 			i, err := strconv.Atoi(v)
 			if err != nil {
-				return req, fmt.Errorf("parse buffer length: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse buffer length: %w", err))
+				continue
 			}
 			req.BufLength = time.Duration(i) * time.Millisecond
 		case "dl":
 			i, err := strconv.Atoi(v)
 			if err != nil {
-				return req, fmt.Errorf("parse deadline: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse deadline: %w", err))
+				continue
 			}
 			req.Deadline = time.Duration(i) * time.Millisecond
 		case "mtp":
 			i, err := strconv.Atoi(v)
 			if err != nil {
-				return req, fmt.Errorf("parse throughput: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse throughput: %w", err))
+				continue
 			}
 			req.Throughput = i
 		case "nor":
 			dec, err := url.QueryUnescape(strings.Trim(v, `"`))
 			if err != nil {
-				return req, fmt.Errorf("decode next object request: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("decode next object request: %w", err))
+				continue
 			}
 			req.Next = dec
 		case "nrr":
 			rg, err := parseRange(strings.Trim(v, `"`))
 			if err != nil {
-				return req, fmt.Errorf("parse next range: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse next range: %w", err))
+				continue
 			}
 			req.NextRange = rg
 		case "su":
 			req.Startup = true
 		}
 	}
-	return req, nil
+	return req, errs
 }
 
 func parseObject(attrs map[string]string) (Object, error) {
-	var obj Object
+	var (
+		obj  Object
+		errs error
+	)
 	for k, v := range attrs {
 		if v == "" {
 			continue // stray comma, perhaps at end of line. ignore
@@ -84,13 +100,15 @@ func parseObject(attrs map[string]string) (Object, error) {
 		case "br":
 			i, err := strconv.Atoi(v)
 			if err != nil {
-				return obj, fmt.Errorf("parse bitrate: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse bitrate: %w", err))
+				continue
 			}
 			obj.Bitrate = i
 		case "d":
 			i, err := strconv.Atoi(v)
 			if err != nil {
-				return obj, fmt.Errorf("parse duration: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse duration: %w", err))
+				continue
 			}
 			obj.Duration = time.Duration(i) * time.Millisecond
 		case "ot":
@@ -99,16 +117,21 @@ func parseObject(attrs map[string]string) (Object, error) {
 		case "tb":
 			i, err := strconv.Atoi(v)
 			if err != nil {
-				return obj, fmt.Errorf("parse top bitrate: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse top bitrate: %w", err))
+				continue
 			}
 			obj.TopBitrate = i
 		}
 	}
-	return obj, nil
+	return obj, errs
 }
 
 func parseStatus(attrs map[string]string) (Status, error) {
-	var stat Status
+	var (
+		stat Status
+		errs error
+	)
+
 	for k, v := range attrs {
 		switch k {
 		case "bs":
@@ -116,16 +139,20 @@ func parseStatus(attrs map[string]string) (Status, error) {
 		case "rtp":
 			i, err := strconv.Atoi(v)
 			if err != nil {
-				return stat, fmt.Errorf("parse max throughput: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse max throughput: %w", err))
+				continue
 			}
 			stat.MaxThroughput = i
 		}
 	}
-	return stat, nil
+	return stat, errs
 }
 
 func parseSession(attrs map[string]string) (Session, error) {
-	var ses Session
+	var (
+		ses  Session
+		errs error
+	)
 	for k, v := range attrs {
 		switch k {
 		case "sid":
@@ -137,19 +164,22 @@ func parseSession(attrs map[string]string) (Session, error) {
 		case "pr":
 			i, err := strconv.ParseFloat(v, 32)
 			if err != nil {
-				return ses, fmt.Errorf("play rate: %w", err)
+				errs = errors.Join(errs, fmt.Errorf("parse play rate: %w", err))
+				continue
 			}
 			ses.PlayRate = PlayRate(i)
 		case "sf":
 			if len(v) != 1 {
-				return ses, fmt.Errorf("stream format: %s is not a single character", v)
+				errs = errors.Join(errs, fmt.Errorf("stream format: %s is not a single character", v))
+				continue
 			}
 			c := StreamFormat([]byte(v)[0])
 			switch c {
 			case FormatDASH, FormatHLS, FormatSmooth, FormatOther:
 				ses.Format = c
 			default:
-				return ses, fmt.Errorf("stream format: unknown format %c", c)
+				errs = errors.Join(errs, fmt.Errorf("stream format: unknown format %c", c))
+				continue
 			}
 		}
 	}
@@ -159,7 +189,7 @@ func parseSession(attrs map[string]string) (Session, error) {
 	if _, ok := attrs["pr"]; !ok {
 		ses.PlayRate = RealTime
 	}
-	return ses, nil
+	return ses, errs
 }
 
 func parseCustom(attrs map[string]string) map[string]any {
