@@ -3,6 +3,8 @@ package cmcd
 import (
 	"fmt"
 	"net/url"
+	"reflect"
+	"testing"
 )
 
 func ExampleParseInfo() {
@@ -18,4 +20,45 @@ func ExampleParseInfo() {
 	// Output:
 	// br=3200,bs,d=4004,mtp=25400
 	// 3200
+}
+
+func Test_parseRange(t *testing.T) {
+	tests := []struct {
+		args    string
+		want    Range
+		wantErr bool
+	}{
+		{
+			args:    "0-",
+			want:    [2]int{0, -1},
+			wantErr: false,
+		},
+		{
+			args:    "-0",
+			want:    [2]int{-1, 0},
+			wantErr: false,
+		},
+		{
+			args:    "10-100",
+			want:    [2]int{10, 100},
+			wantErr: false,
+		},
+		{
+			args:    "111",
+			want:    [2]int{},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.args, func(t *testing.T) {
+			got, err := parseRange(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseRange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseRange() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
