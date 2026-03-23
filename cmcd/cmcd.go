@@ -36,6 +36,8 @@ const (
 	HeaderObject  = "CMCD-Object"
 	HeaderStatus  = "CMCD-Status"
 	HeaderSession = "CMCD-Session"
+
+	nextUndefined = "undefined"
 )
 
 type Info struct {
@@ -54,7 +56,7 @@ func (info Info) Encode() string {
 	ss[1] = info.Object.Encode()
 	ss[2] = info.Status.Encode()
 	ss[3] = info.Session.Encode()
-	if info.Custom != nil && len(info.Custom) > 0 {
+	if len(info.Custom) > 0 {
 		for k, v := range info.Custom {
 			switch v.(type) {
 			case string:
@@ -115,6 +117,13 @@ type Request struct {
 	// If true, a response is needed urgently as playback may be
 	// starting, seeking, or the client has an empty playback buffer.
 	Startup bool
+}
+
+func (r Request) GetNext() string {
+	if r.Next == "" || r.Next == nextUndefined {
+		return ""
+	}
+	return r.Next
 }
 
 type Range [2]int
